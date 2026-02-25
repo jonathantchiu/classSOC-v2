@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slack-notifier"
+version = "0.1.0"
+description = "Simple Slack Bot client for posting messages to channels or DMs"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.28.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["slack_notifier*"]
