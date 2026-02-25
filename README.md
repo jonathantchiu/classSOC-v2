@@ -1,5 +1,7 @@
 # UCLA Enrollment Monitor
 
+> Python + Selenium: refreshes MyUCLA Class Plan, parses Lec/Lab availability, pings Slack for open classes.
+
 Refreshes the MyUCLA Class Plan page every ~15 seconds and posts availability for monitored courses to Slack (with ping for available classes only).
 
 ## Screenshots
