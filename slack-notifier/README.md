@@ -54,20 +54,25 @@ client.post("Message", ping_user_id="U0OTHER")
 
 ## Environment variables
 
+Copy `.env.example` to `.env` and fill in your values:
+
 ```bash
 SLACK_BOT_TOKEN=xoxb-...
 SLACK_USER_ID=U0xxxxx
 SLACK_CHANNEL=#general  # optional, omit for DM
 ```
 
+Use `from_env()` to load from env. Load `.env` first if needed (e.g. `python-dotenv` or export in your shell):
+
 ```python
-import os
 from slack_notifier import SlackBotClient
 
-client = SlackBotClient(
-    bot_token=os.environ["SLACK_BOT_TOKEN"],
-    dm_user_id=os.environ["SLACK_USER_ID"],
-    channel=os.environ.get("SLACK_CHANNEL"),
-)
+client = SlackBotClient.from_env()
 client.post("Hello from my script!")
+```
+
+Override env vars by passing explicit args:
+
+```python
+client = SlackBotClient.from_env(channel="#alerts")
 ```

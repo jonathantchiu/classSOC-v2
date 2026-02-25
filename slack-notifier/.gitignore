@@ -3,3 +3,8 @@ __pycache__/
 *.py[cod]
 dist/
 build/
+
+# Env files (secrets)
+.env
+.env.local
+.env.*.local

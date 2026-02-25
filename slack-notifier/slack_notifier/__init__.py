@@ -1,6 +1,7 @@
 """Standalone Slack Bot client for posting messages to channels or DMs."""
 
 import logging
+import os
 from typing import Optional
 
 import requests
@@ -8,6 +9,11 @@ import requests
 __version__ = "0.1.0"
 
 logger = logging.getLogger(__name__)
+
+# Env var names for from_env()
+ENV_BOT_TOKEN = "SLACK_BOT_TOKEN"
+ENV_USER_ID = "SLACK_USER_ID"
+ENV_CHANNEL = "SLACK_CHANNEL"
 
 
 class SlackBotClient:
@@ -47,6 +53,25 @@ class SlackBotClient:
         self.dm_user_id = dm_user_id
         self.channel = channel
         self._dm_channel_id: Optional[str] = None
+
+    @classmethod
+    def from_env(
+        cls,
+        bot_token: Optional[str] = None,
+        dm_user_id: Optional[str] = None,
+        channel: Optional[str] = None,
+    ) -> "SlackBotClient":
+        """
+        Create client from environment variables.
+
+        Reads SLACK_BOT_TOKEN, SLACK_USER_ID, SLACK_CHANNEL (optional).
+        Pass explicit args to override env vars.
+        """
+        return cls(
+            bot_token=bot_token or os.environ[ENV_BOT_TOKEN],
+            dm_user_id=dm_user_id or os.environ.get(ENV_USER_ID),
+            channel=channel or os.environ.get(ENV_CHANNEL),
+        )
 
     def post(
         self,
