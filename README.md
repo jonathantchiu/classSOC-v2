@@ -45,6 +45,7 @@ python monitor.py
 |----------|---------|-------------|
 | `UCLA_MONITOR_INTERVAL` | 15 | Seconds between refreshes |
 | `UCLA_MONITOR_HEADLESS` | (off) | Set to `1`, `true`, or `yes` to run Chrome headless (no window) |
+| `UCLA_MONITOR_SOUND` | 1 | Set to `0`, `false`, or `no` to disable sound notification when a class opens (Windows) |
 | `SLACK_CHANNEL` | (required) | Channel to post to (e.g. #soc-v2-test) |
 
 Courses are defined in `ucla-monitor/monitor.py` (`COURSES` list) by class code: `("AERO", "A")`, `("SCAND60", "60")`, `("M61", "61")`. Add `(label, class_code)` for each course to monitor.

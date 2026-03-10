@@ -10,6 +10,11 @@ import sys
 import time
 from pathlib import Path
 
+try:
+    import winsound
+except ImportError:
+    winsound = None
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -193,6 +198,12 @@ def main() -> None:
                     msg = f"*{status}*"
                     logger.info("Posting %s to %s", status, channel)
                     slack.post(msg)
+                    # Sound notification (Windows)
+                    if winsound and os.environ.get("UCLA_MONITOR_SOUND", "1").lower() not in ("0", "false", "no"):
+                        try:
+                            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+                        except Exception:
+                            pass
 
     except KeyboardInterrupt:
         logger.info("Stopped by user")
