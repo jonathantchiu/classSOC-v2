@@ -37,9 +37,7 @@ DEFAULT_INTERVAL = 15
 
 # (display_name, class_code) — class code appears on line 2 as "[code] - [description]"
 COURSES = [
-    ("AERO", "A"),
-    ("SCAND60", "60"),
-    ("M61", "61"),
+    ("English 4w", "4w"),
 ]
 
 
@@ -161,6 +159,8 @@ def main() -> None:
         return
 
     opts = Options()
+    if os.environ.get("UCLA_MONITOR_HEADLESS", "").lower() in ("1", "true", "yes"):
+        opts.add_argument("--headless=new")
     driver = webdriver.Chrome(options=opts)
     slack = SlackBotClient.from_env()
 
@@ -186,7 +186,9 @@ def main() -> None:
 
             for label, class_code in COURSES:
                 status, _ = get_course_availability(driver, label, class_code)
-                # Only post and ping for available classes (Open or Waitlist)
+                # Always print status at start of each refresh
+                print(status)
+                # Only post to Slack for available classes (Open or Waitlist)
                 if "CLOSED" not in status and "NOT FOUND" not in status:
                     msg = f"*{status}*"
                     logger.info("Posting %s to %s", status, channel)
