@@ -3,6 +3,7 @@
 UCLA Enrollment Monitor - Refreshes MyUCLA enrollment page and posts course availability to Slack.
 """
 
+import argparse
 import logging
 import os
 import re
@@ -134,13 +135,14 @@ def _is_session_expired(driver) -> bool:
 
 
 def _wait_for_relogin(driver) -> None:
-    """Block until the user re-logs in and the enrollment page is visible again."""
-    logger.warning("Session expired — please log back in to continue monitoring.")
+    """Navigate back to enrollment URL and block until user re-logs in."""
+    logger.warning("Session expired — navigating back to enrollment page. Please log back in.")
     if winsound:
         try:
             winsound.MessageBeep(winsound.MB_ICONHAND)
         except Exception:
             pass
+    driver.get(UCLA_ENROLLMENT_URL)
     input("Press Enter after you've logged back in and the enrollment page is visible...")
     logger.info("Resuming monitor...")
 
@@ -183,18 +185,36 @@ def get_course_availability(driver, label: str, class_code: str) -> tuple[str, s
         return f"[{label} - ERROR]", str(e)
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="UCLA Enrollment Monitor")
+    parser.add_argument("--interval", type=int, default=int(os.environ.get("UCLA_MONITOR_INTERVAL", DEFAULT_INTERVAL)),
+                        help=f"Refresh interval in seconds (default: {DEFAULT_INTERVAL})")
+    parser.add_argument("--headless", action="store_true",
+                        default=os.environ.get("UCLA_MONITOR_HEADLESS", "").lower() in ("1", "true", "yes"),
+                        help="Run Chrome in headless mode")
+    parser.add_argument("--no-sound", action="store_true",
+                        default=os.environ.get("UCLA_MONITOR_SOUND", "1").lower() in ("0", "false", "no"),
+                        help="Disable sound notifications")
+    parser.add_argument("--channel", default=os.environ.get("SLACK_CHANNEL"),
+                        help="Slack channel to post to (overrides SLACK_CHANNEL env var)")
+    return parser.parse_args()
+
+
 def main() -> None:
-    interval = int(os.environ.get("UCLA_MONITOR_INTERVAL", DEFAULT_INTERVAL))
-    channel = os.environ.get("SLACK_CHANNEL")
-    if not channel:
-        logger.error("SLACK_CHANNEL required in .env")
+    args = _parse_args()
+
+    if not args.channel:
+        logger.error("SLACK_CHANNEL required (set in .env or pass --channel)")
         return
 
     opts = Options()
-    if os.environ.get("UCLA_MONITOR_HEADLESS", "").lower() in ("1", "true", "yes"):
+    if args.headless:
         opts.add_argument("--headless=new")
     driver = webdriver.Chrome(options=opts)
     slack = SlackBotClient.from_env()
+
+    # Track last known status per course to avoid spamming Slack on every refresh
+    last_status: dict[str, str] = {}
 
     try:
         logger.info("Opening UCLA enrollment page...")
@@ -202,10 +222,10 @@ def main() -> None:
 
         input("Press Enter after you've logged in and the enrollment page is visible...")
 
-        logger.info("Starting monitor loop (refresh every %ds, courses=%s)", interval, [f"{c[0]}({c[1]})" for c in COURSES])
+        logger.info("Starting monitor loop (refresh every %ds, courses=%s)", args.interval, [f"{c[0]}({c[1]})" for c in COURSES])
 
         while True:
-            time.sleep(interval)
+            time.sleep(args.interval)
             driver.refresh()
 
             try:
@@ -222,15 +242,20 @@ def main() -> None:
 
             for label, class_code in COURSES:
                 status, _ = get_course_availability(driver, label, class_code)
-                # Always print status at start of each refresh
-                print(status)
-                # Only post to Slack for available classes (Open or Waitlist)
-                if "CLOSED" not in status and "NOT FOUND" not in status:
+                logger.info(status)
+
+                prev = last_status.get(label)
+                if status == prev:
+                    continue  # no change — skip Slack and sound
+
+                last_status[label] = status
+
+                # Only notify for available classes (Open or Waitlist)
+                if "CLOSED" not in status and "NOT FOUND" not in status and "ERROR" not in status:
                     msg = f"*{status}*"
-                    logger.info("Posting %s to %s", status, channel)
+                    logger.info("Posting %s to %s", status, args.channel)
                     slack.post(msg)
-                    # Sound notification (Windows) — play 3 beeps so it's hard to miss
-                    if winsound and os.environ.get("UCLA_MONITOR_SOUND", "1").lower() not in ("0", "false", "no"):
+                    if winsound and not args.no_sound:
                         try:
                             for _ in range(3):
                                 winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
