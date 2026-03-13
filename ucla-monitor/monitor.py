@@ -118,6 +118,33 @@ def _parse_lec_lab_status(rows: list[str]) -> tuple[str, int | None]:
     return ("closed", None)
 
 
+def _is_session_expired(driver) -> bool:
+    """Return True if the page looks like a login/session-timeout page."""
+    url = driver.current_url.lower()
+    if "login" in url or "signin" in url or "sso" in url or "logon" in url:
+        return True
+    try:
+        body = driver.find_element(By.TAG_NAME, "body").text.lower()
+        login_signals = ["sign in", "username", "password", "session has expired", "timed out", "log in"]
+        if sum(1 for s in login_signals if s in body) >= 2:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _wait_for_relogin(driver) -> None:
+    """Block until the user re-logs in and the enrollment page is visible again."""
+    logger.warning("Session expired — please log back in to continue monitoring.")
+    if winsound:
+        try:
+            winsound.MessageBeep(winsound.MB_ICONHAND)
+        except Exception:
+            pass
+    input("Press Enter after you've logged back in and the enrollment page is visible...")
+    logger.info("Resuming monitor...")
+
+
 def get_course_availability(driver, label: str, class_code: str) -> tuple[str, str]:
     """
     Find block(s) where line 2 starts with [class_code] - [description].
@@ -189,6 +216,10 @@ def main() -> None:
                 logger.warning("Wait for page failed: %s", e)
                 continue
 
+            if _is_session_expired(driver):
+                _wait_for_relogin(driver)
+                continue
+
             for label, class_code in COURSES:
                 status, _ = get_course_availability(driver, label, class_code)
                 # Always print status at start of each refresh
@@ -198,10 +229,12 @@ def main() -> None:
                     msg = f"*{status}*"
                     logger.info("Posting %s to %s", status, channel)
                     slack.post(msg)
-                    # Sound notification (Windows)
+                    # Sound notification (Windows) — play 3 beeps so it's hard to miss
                     if winsound and os.environ.get("UCLA_MONITOR_SOUND", "1").lower() not in ("0", "false", "no"):
                         try:
-                            winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+                            for _ in range(3):
+                                winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+                                time.sleep(0.2)
                         except Exception:
                             pass
 
