@@ -250,8 +250,11 @@ def main() -> None:
 
                 last_status[label] = status
 
-                # Only notify for available classes (Open or Waitlist)
-                if "CLOSED" not in status and "NOT FOUND" not in status and "ERROR" not in status:
+                is_available = "CLOSED" not in status and "NOT FOUND" not in status and "ERROR" not in status
+                was_available = prev and "CLOSED" not in prev and "NOT FOUND" not in prev and "ERROR" not in prev
+
+                # Notify when opening (any -> available) or closing (available -> closed)
+                if is_available:
                     msg = f"*{status}*"
                     logger.info("Posting %s to %s", status, args.channel)
                     slack.post(msg)
@@ -262,6 +265,10 @@ def main() -> None:
                                 time.sleep(0.2)
                         except Exception:
                             pass
+                elif was_available and "CLOSED" in status:
+                    msg = f"~{label} is now closed~"
+                    logger.info("Posting closure notice for %s to %s", label, args.channel)
+                    slack.post(msg)
 
     except KeyboardInterrupt:
         logger.info("Stopped by user")
